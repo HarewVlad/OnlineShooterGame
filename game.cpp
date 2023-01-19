@@ -74,7 +74,7 @@ static void InitializeShaders(Game *game) {
   }
 }
 
-static void AddTexture(Game *game, int type, const char *filename) {
+static void CreateAndAddTexture(Game *game, int type, const char *filename) {
   ID3D11ShaderResourceView *texture = CreateTexture(game->directx.device, filename);
   hmput(game->textures, type, texture);
 }
@@ -82,22 +82,64 @@ static void AddTexture(Game *game, int type, const char *filename) {
 static void InitializeTextures(Game *game) {
   // Weapons
   {
-    AddTexture(game, Weapon_AK47, "assets\\weapons\\AK-47.png");
-    AddTexture(game, Weapon_Anaconda, "assets\\weapons\\Anaconda.png");
-    AddTexture(game, Weapon_AUG, "assets\\weapons\\AUG.png");
+    CreateAndAddTexture(game, Weapon_AK47, "assets\\weapons\\AK-47.png");
+    CreateAndAddTexture(game, Weapon_Anaconda, "assets\\weapons\\Anaconda.png");
+    CreateAndAddTexture(game, Weapon_AUG, "assets\\weapons\\AUG.png");
+  }
+
+  // Biker
+  {
+    CreateAndAddTexture(game, Animation_Run, "assets\\biker\\run.png");
+    CreateAndAddTexture(game, Animation_Death, "assets\\biker\\death.png");
+    CreateAndAddTexture(game, Animation_Idle, "assets\\biker\\idle.png");
+    CreateAndAddTexture(game, Animation_Hurt, "assets\\biker\\hurt.png");
+  }
+}
+
+static void InitializeAnimations(Game *game) {
+  // Biker
+  {
+    HashMapPut<int, Animation>(&game->animations, Animation_Run, Animation {0, 6, 0});
+    HashMapPut<int, Animation>(&game->animations, Animation_Death, Animation {0, 6, 0});
+    HashMapPut<int, Animation>(&game->animations, Animation_Idle, Animation {0, 4, 0});
+    HashMapPut<int, Animation>(&game->animations, Animation_Hurt, Animation {0, 2, 0});
   }
 }
 
 static void InitializeWeaponInfo(Game *game) {
-  // Use temp here because for some reson hash map only takes lvalues as keys
-  int temp = Weapon_AK47;
-  hmput(game->weapon_info, temp, 10);
+  HashMapPut<int, int>(&game->weapon_info, Weapon_AK47, 15);
+  HashMapPut<int, int>(&game->weapon_info, Weapon_Anaconda, 10);
+  HashMapPut<int, int>(&game->weapon_info, Weapon_AUG, 3);
+}
 
-  temp = Weapon_Anaconda;
-  hmput(game->weapon_info, temp, 5);
+static void InitializeMeshes(Game *game) {
+  auto device = game->directx.device;
 
-  temp = Weapon_AUG;
-  hmput(game->weapon_info, temp, 3);
+  Mesh mesh;
+
+  // Player
+  {
+    InitializeSquare(&mesh, device);
+    shput(game->meshes, "player", mesh);
+  }
+
+  // Weapon
+  {
+    InitializeSquare(&mesh, device);
+    shput(game->meshes, "weapon", mesh);
+  }
+
+  // Map
+  {
+    InitializeSquare(&mesh, device);
+    shput(game->meshes, "map", mesh);
+  }
+
+  // Bullet
+  {
+    InitializeSquare(&mesh, device);
+    shput(game->meshes, "bullets", mesh);
+  }
 }
 
 static void InitializeGame(Game *game, HINSTANCE instance) {
@@ -114,16 +156,13 @@ static void InitializeGame(Game *game, HINSTANCE instance) {
       game->directx.device, D3D11_USAGE_DYNAMIC, D3D11_BIND_CONSTANT_BUFFER,
       D3D11_CPU_ACCESS_WRITE, NULL, sizeof(ConstantBuffer));
 
-  // Mesh that will be used for everything =)
-  CreateSquare(&game->mesh, game->directx.device);
-
+  InitializeMeshes(game);
   InitializeShaders(game);
   InitializeTextures(game);
-
-  // Initialize game modules
+  InitializeAnimations(game);
   InitializeDefaultMap(&game->map, game->directx.device, s_MapWidth, s_MapHeight);
   InitializeCamera(&game->camera, s_PlayerSpawnPosition);
-  InitializePlayer(&game->player, s_PlayerSpawnPosition, s_PlayerSize, s_PlayerStamina, s_PlayerHp);
+  InitializePlayer(&game->player, s_PlayerSpawnPosition, s_PlayerSize, s_PlayerStamina, s_PlayerHp, Animation_Idle);
   InitializeDummy(&game->dummy, s_DummyPosition, s_PlayerSize, s_DummyHp);
 
   InitializeWeaponInfo(game);
@@ -139,6 +178,20 @@ static void InitializeGame(Game *game, HINSTANCE instance) {
   // game->projection = XMMatrixOrthographicOffCenterLH(-s_Width, s_Width, -s_Height, s_Height, 1, 1000);
   // game->projection = XMMatrixPerspectiveLH(
   //   s_Width, s_Height, 0.1f, 1024);
+}
+
+ConnectionData *GetConnectionData(Game *game) {
+  auto connection = GetConnection(&game->server);
+  if (connection != NULL) {
+    return &connection->host_data;
+  } else {
+    connection = game->client.connection;
+    if (connection != NULL) {
+      return &connection->client_data;
+    }
+  }
+
+  return NULL;
 }
 
 static void UpdateCollision(Game *game, float dt) {
@@ -167,13 +220,44 @@ static void UpdateCollision(Game *game, float dt) {
     }
   }
 
-  // Bullets collision with map objects
+  // Bullets
   auto bullets = &game->bullets;
+  auto dummy = &game->dummy;
+
+  Body dummy_body;
+  InitializeBody(&dummy_body, dummy->position, dummy->size);
+
+  // Only process collisions on host machine
+  auto connection = GetConnection(&game->server);
+  const auto connection_data = &connection->client_data;
+
+  Body enemy_body;
+  if (connection != NULL) {
+    InitializeBody(&enemy_body, connection_data->position, player->size);
+  }
+
   for (int i = 0; i < arrlen(bullets->mesh_instance_data); i++) {
     auto bid = bullets->mesh_instance_data[i];
 
     Body bullet_body;
     InitializeBody(&bullet_body, bid.position, bid.size);
+
+    // With client / host player
+    if (connection != NULL) {
+      if (TestAABBAABB(&bullet_body, &enemy_body)) {
+        int damage = hmget(game->weapon_info, weapon->type);
+
+        // So initial thought is that server makes changed, send them to client, and client apply them and after that cleans it
+        // changed_data->hp = static_cast<float>(-damage);
+      }
+    } else { // With dummy
+      if (TestAABBAABB(&bullet_body, &dummy_body)) {
+        int damage = hmget(game->weapon_info, weapon->type);
+        dummy->hp -= damage;
+      }
+    }
+
+    // With map objects
     for (int j = 0; j < map_object_count; j++) {
       MeshInstanceData oid = map->mesh_instance_data[j];
 
@@ -186,27 +270,6 @@ static void UpdateCollision(Game *game, float dt) {
       }
     }
   }
-
-  // Bullets collision with training dummy
-  auto dummy = &game->dummy;
-
-  Body dummy_body;
-  InitializeBody(&dummy_body, dummy->position, dummy->size);
-
-  for (int i = 0; i < arrlen(bullets->mesh_instance_data); i++) {
-    auto bid = bullets->mesh_instance_data[i];
-
-    Body bullet_body;
-    InitializeBody(&bullet_body, bid.position, bid.size);
-
-    if (TestAABBAABB(&bullet_body, &dummy_body)) {
-      int damage = hmget(game->weapon_info, weapon->type);
-
-      dummy->hp -= damage;
-    }
-  }
-
-  // TODO: Bullets collision with players
 }
 
 static void Input(Game *game, float dt) {
@@ -244,9 +307,14 @@ static void Input(Game *game, float dt) {
     player->stamina += dt * 0.1f;
   }
 
-  AddToVector(&player->position, player_velocity);
-  AddToVector(&weapon->position, player_velocity);
-  MoveCamera(&game->camera, player_velocity.x, player_velocity.y);
+  if (player_velocity.x != 0 || player_velocity.y != 0) {
+    AddToVector(&player->position, player_velocity);
+    AddToVector(&weapon->position, player_velocity);
+    MoveCamera(&game->camera, player_velocity.x, player_velocity.y);
+    player->animation_type = Animation_Run;
+  } else {
+    player->animation_type = Animation_Idle;
+  }
 
   // Vector from weapon cetner to cursor
   POINT cursor_position = GetCursorPosition(game->window);
@@ -274,35 +342,42 @@ static void Input(Game *game, float dt) {
   }
 }
 
-// Client sends its position to host
-static void UpdateClient(Client *client, Player *player) {
-  auto connection = client->connection;
-  if (connection != NULL) {
-    connection->client_data.position = player->position;
-  }
-}
-
-// Host sends its position to client
-static void UpdateServer(Server *server, Player *player) {
-  auto connection = GetConnection(server);
-  if (connection != NULL) {
-    connection->host_data.position = player->position;
-  }
-}
-
-static void DummyRegeneration(Dummy *dummy, float dt) {
-  // Dummy should be invinsible, so you can see big damange, but it is also regening
+static void UpdateDummy(Dummy *dummy, float dt) {
+  // Regenerate dummy
   if (dummy->hp < s_DummyHp) {
     dummy->hp += s_DummyRegenRate * dt;
   }
 }
 
+static void UpdateConnection(Game *game) {
+  auto player = &game->player;
+  auto connection = GetConnection(&game->server);
+
+  if (connection != NULL) {
+    // Write host player data
+    connection->host_data = {player->position, player->hp};
+  } else {
+    connection = game->client.connection;
+    if (connection != NULL) {
+      // Write client player data
+      connection->client_data = {player->position, player->hp};
+    }
+  }
+}
+
+static void UpdateAnimations(Game *game, float dt) {
+  auto player = &game->player;
+  auto animation = &hmget(game->animations, player->animation_type);
+
+  UpdateAnimation(animation, dt);
+}
+
 static void Update(Game *game, float dt) {
   UpdateBullets(&game->bullets, s_BulletMaxDistance, s_BulletSpeed);
   UpdateCollision(game, dt);
-  DummyRegeneration(&game->dummy, dt);
-  UpdateServer(&game->server, &game->player);
-  UpdateClient(&game->client, &game->player);
+  UpdateDummy(&game->dummy, dt);
+  UpdateConnection(game);
+  UpdateAnimations(game, dt);
 }
 
 static void RenderGame(Game *game) {
@@ -313,11 +388,12 @@ static void RenderGame(Game *game) {
 
   // Map
   {
-    Map *map = &game->map;
+    auto map = &game->map;
 
     auto vertex_shader = &shget(game->vertex_shaders, "map");
     auto pixel_shader = &shget(game->pixel_shaders, "map");
     auto input_layout = shget(game->input_layouts, "map");
+    auto mesh = &shget(game->meshes, "map");
 
     device_context->IASetInputLayout(input_layout);
     device_context->VSSetShader(vertex_shader->shader,
@@ -333,13 +409,13 @@ static void RenderGame(Game *game) {
 
     device_context->VSSetConstantBuffers(0, 1, &game->default_constant_buffer);
 
-    ID3D11Buffer *buffers[] = {game->mesh.vertex_buffer,
+    ID3D11Buffer *buffers[] = {mesh->vertex_buffer,
                                map->instance_buffer};
     UINT strides[] = {sizeof(Vertex), sizeof(MeshInstanceData)};
     UINT offsets[] = {0, 0};
     device_context->IASetVertexBuffers(0, 2, buffers, strides,
                                                 offsets);
-    device_context->IASetIndexBuffer(game->mesh.index_buffer,
+    device_context->IASetIndexBuffer(mesh->index_buffer,
                                               DXGI_FORMAT_R32_UINT, 0);
 
     UINT count = static_cast<UINT>(arrlen(map->mesh_instance_data));
@@ -354,6 +430,7 @@ static void RenderGame(Game *game) {
   {
     auto vertex_shader = &shget(game->vertex_shaders, "bullets");
     auto pixel_shader = &shget(game->pixel_shaders, "bullets");
+    auto mesh = &shget(game->meshes, "bullets");
 
     device_context->VSSetShader(vertex_shader->shader,
                                          nullptr, 0);
@@ -363,7 +440,7 @@ static void RenderGame(Game *game) {
     UpdateBuffer(bullets->instance_buffer, bullets->mesh_instance_data, sizeof(MeshInstanceData) * bullet_count,
                  device_context);
 
-    ID3D11Buffer *buffers[] = {game->mesh.vertex_buffer,
+    ID3D11Buffer *buffers[] = {mesh->vertex_buffer,
                                bullets->instance_buffer};
     UINT strides[] = {sizeof(Vertex), sizeof(MeshInstanceData)};
     UINT offsets[] = {0, 0};
@@ -381,12 +458,27 @@ static void RenderGame(Game *game) {
     auto vertex_shader = &shget(game->vertex_shaders, "player");
     auto pixel_shader = &shget(game->pixel_shaders, "player");
     auto input_layout = shget(game->input_layouts, "player");
+    auto mesh = &shget(game->meshes, "player");
+    auto texture = hmget(game->textures, player->animation_type);
+    auto animation = &hmget(game->animations, player->animation_type);
+
+    // Update UVs for player
+    Vertex vertices[4] = {
+      Vertex{XMFLOAT2{-1, -1}, animation->uv[0]},
+      Vertex{XMFLOAT2{-1, 1}, animation->uv[1]},
+      Vertex{XMFLOAT2{1, 1}, animation->uv[2]},
+      Vertex{XMFLOAT2{1, -1}, animation->uv[3]}
+    };
+
+    UpdateBuffer(mesh->vertex_buffer, &vertices, sizeof(vertices),
+                 device_context);
 
     device_context->IASetInputLayout(input_layout);
     device_context->VSSetShader(vertex_shader->shader,
                                          nullptr, 0);
     device_context->PSSetShader(pixel_shader->shader,
                                          nullptr, 0);
+    device_context->PSSetShaderResources(0, 1, &texture);
 
     XMMATRIX mvp = GetModelMatrix(player->position, player->size) * view * game->projection;
 
@@ -397,8 +489,8 @@ static void RenderGame(Game *game) {
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
     device_context->IASetVertexBuffers(
-        0, 1, &game->mesh.vertex_buffer, &stride, &offset);
-    device_context->IASetIndexBuffer(game->mesh.index_buffer,
+        0, 1, &mesh->vertex_buffer, &stride, &offset);
+    device_context->IASetIndexBuffer(mesh->index_buffer,
                                               DXGI_FORMAT_R32_UINT, 0);
 
     device_context->DrawIndexed(6, 0, 0);
@@ -424,7 +516,7 @@ static void RenderGame(Game *game) {
 
       device_context->DrawIndexed(6, 0, 0);
     } else { // For now we assume that if we don't have connection, than we are in a training mode
-      Dummy *dummy = &game->dummy;
+      auto dummy = &game->dummy;
 
       mvp = GetModelMatrix(dummy->position, player->size) * view * game->projection;
 
@@ -440,7 +532,8 @@ static void RenderGame(Game *game) {
       auto weapon = &game->weapon;
 
       pixel_shader = &shget(game->pixel_shaders, "weapon");
-      auto texture = hmget(game->textures, weapon->type);
+      mesh = &shget(game->meshes, "weapon");
+      texture = hmget(game->textures, weapon->type);
 
       device_context->PSSetShader(pixel_shader->shader,
                                            nullptr, 0);
@@ -452,6 +545,9 @@ static void RenderGame(Game *game) {
       constant_buffer_data = { XMMatrixTranspose(mvp) };
       UpdateBuffer(game->default_constant_buffer, &constant_buffer_data, sizeof(ConstantBuffer),
                    device_context);
+
+      device_context->IASetVertexBuffers(
+        0, 1, &mesh->vertex_buffer, &stride, &offset);
 
       device_context->DrawIndexed(6, 0, 0);
     }
@@ -526,6 +622,8 @@ static void RenderGameInterface(Game *game) {
   ImGui::ProgressBar(player->stamina, ImVec2(100.0f, 0.0f));
   ImGui::PopStyleColor();
 
+  ImGui::Text("Player hp -> %.3f", player->hp);
+
   auto weapon = &game->weapon;
   ImGui::Text("Weapon angle -> %.3f", weapon->angle);
 
@@ -535,31 +633,38 @@ static void RenderGameInterface(Game *game) {
   auto dummy = &game->dummy;
   ImGui::Text("Dummy hp -> %.3f", dummy->hp);
 
+  auto animation = &hmget(game->animations, player->animation_type);
+  ImGui::Text("Animation index, time -> %d, %.3f", animation->index, animation->time);
+
   // If not multiplayer, render hp for dummy
+  ImVec2 offset = {player->size.x * 2, player->size.y * 2};
   if (!IsConnected(&game->server, &game->client)) {
     ImVec2 dummy_position = GetARelativeToB(dummy->position, player->position);
 
-    ImGui::SetCursorPos(io.DisplaySize / 2.0f + dummy_position);
+    ImGui::SetCursorPos(io.DisplaySize / 2.0f + dummy_position - offset);
     DrawHpBar(dummy->hp, s_DummyHp);
   } else {
     // Render hp for Host / Client
     auto connection = GetConnection(&game->server);
-    ImVec2 position = {};
+    ConnectionData *connection_data = NULL;
     if (connection != NULL) {
-      position = GetARelativeToB(connection->client_data.position, player->position);
+      connection_data = &connection->client_data;
     } else {
       connection = game->client.connection;
       if (connection != NULL) {
-        position = GetARelativeToB(connection->host_data.position, player->position);
+        connection_data = &connection->host_data;
       }
     }
 
-    // TODO: Get hp from the client / host
-    ImGui::SetCursorPos(io.DisplaySize / 2.0f + position);
-    DrawHpBar(100, s_PlayerHp);
+    // Not actually needed, but just in case
+    assert(connection_data != NULL);
+
+    ImVec2 relative_position = GetARelativeToB(connection_data->position, player->position);
+    ImGui::SetCursorPos(io.DisplaySize / 2.0f + relative_position - offset);
+    DrawHpBar(connection_data->hp, s_PlayerHp);
   }
 
-  ImGui::SetCursorPos(io.DisplaySize / 2.0f);
+  ImGui::SetCursorPos(io.DisplaySize / 2.0f - offset);
   DrawHpBar(player->hp, s_PlayerHp, ImVec4(1.0f, 0, 0, 1));
 }
 

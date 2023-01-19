@@ -1,17 +1,17 @@
 static void ProceedServerConnection(Connection *connection) {
-  // Get other player position
+  // Send client player data to server
   asio::async_write(
       connection->socket,
-      asio::buffer(&connection->client_data, sizeof(ClientData)),
+      asio::buffer(&connection->client_data, sizeof(ConnectionData)),
       [connection](std::error_code error, std::size_t length) {
         if (!error) {
-          // Our position is sent, read their positon
+          // Read host player data
           asio::async_read(
               connection->socket,
-              asio::buffer(&connection->host_data, sizeof(HostData)),
+              asio::buffer(&connection->host_data, sizeof(ConnectionData)),
               [connection](std::error_code error, size_t length) {
                 if (!error) {
-                  // Their position is processed, launch cycle again
+                  // Repeat
                   ProceedServerConnection(connection);
                 }
               });

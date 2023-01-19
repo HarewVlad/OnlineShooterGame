@@ -25,6 +25,7 @@
 #include "client.cpp"
 #include "server.cpp"
 #include "dummy.cpp"
+#include "animation.cpp"
 #include "game.cpp"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
@@ -35,8 +36,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   InitializeGame(&game, hInstance);
   s_State = State_Menu;
   Run(&game);
-
-  // TODO: Clean up?
 
   return 0;
 }

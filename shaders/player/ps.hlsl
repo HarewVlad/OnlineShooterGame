@@ -1,3 +1,6 @@
+SamplerState s;
+Texture2D t;
+
 struct VS_OUT
 {
   float4 pos : sv_position;
@@ -6,5 +9,5 @@ struct VS_OUT
 
 float4 main(VS_OUT input) : sv_target
 {
-  return float4(1, 0, 0, 1);
+  return t.Sample(s, input.tex);
 }

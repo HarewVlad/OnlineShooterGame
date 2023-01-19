@@ -47,6 +47,8 @@ using asio::ip::tcp;
 #include "client.h"
 #include "server.h"
 #include "dummy.h"
+#include "animation.h"
+#include "texture_list.h"
 #include "game.h"
 
 #pragma comment(lib, "user32.lib")
@@ -124,21 +126,26 @@ using asio::ip::tcp;
 // DONE: Small shader creation code modification
 // DONE: Display player coordinates on enemy's machine (Add additional field to connection?)
 // DONE: Remove repeated fuctions from InitliazeShaders function
+
+// 2023 =)
 // TODO: Pass weapon rotation, weapon type (Different texture)
-
-// 04.01.2023
-// DONE: 1. Training room (Maneken in center of the room to practice)
-// 2. Match with different player
-
-// 04-10.01.2023
+// DONE: -1. Training room (Maneken in center of the room to practice)
+// TODO: 0. Match with different player
 // DONE: 1. Not to render game when in main menu, the game is not yet started at all
 // DONE: 2. Training dummy with infinite hp to test your dps or something
 // DONE: 3. Make hp bar on top of me and training dummy
 // DONE: 4. Collision for training dummy 
-// 5. Make training dummy punch you if you are too close
-// 6. Make texture for training dummy
-// *7. Make texture for player
-// **8. Make ability to throw dummy, change position on force
+// TODO: 5. Make training dummy punch you if you are too close
+// DONE: 6. Make texture for training dummy
+// DONE: *7. Make texture for player
+// TODO: **8. Make ability to throw dummy, change position on force
 // DONE: 9. Disable input on player when not rendering
 // DONE: 10. Remove "Play" and "Connect" button and replace with "Host" and "Client" and while waiting for player play on default map
-// 11. Animations for player and dummy
+// DONE: 12. Collision of dummy suddenly went off ...
+// DONE: 13. Get hp from client / host and display it, remove usage of fixed 100 
+// TODO: 14. Collision for player vs player
+// DONE: 15. Remove dummy when the game is online
+// TODO: 16. Send fixture info about client player to the server, and then send it back to client
+// DONE: 11. Animations for player and dummy
+// DONE: Remove usage of this animation_frames, store it inside Animation struct
+// DONE: We now change uv coordinates, make different meshes for different objects

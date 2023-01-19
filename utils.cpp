@@ -1,3 +1,8 @@
+template <typename T, typename V>
+static void HashMapPut(HashMap<T, V> **hash_map, const T key, const V value) {
+  hmput(*hash_map, key, value);
+}
+
 static int GetMilliseconds() {
   static int base = timeGetTime();
 

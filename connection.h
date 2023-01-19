@@ -1,13 +1,10 @@
-struct ClientData {
+struct ConnectionData {
   XMFLOAT2 position;
-};
-
-struct HostData {
-  XMFLOAT2 position;
+  float hp;
 };
 
 struct Connection {
   tcp::socket socket;
-  HostData host_data;
-  ClientData client_data;
+  ConnectionData host_data;
+  ConnectionData client_data;
 };
