@@ -1,7 +1,7 @@
 struct Dummy {
-  XMFLOAT2 position;
-  XMFLOAT2 size;
-  float hp;
-};
+  XMFLOAT2 m_position;
+  XMFLOAT2 m_size;
+  float m_hp;
 
-static void InitializeDummy(Dummy *dummy, XMFLOAT2 position, XMFLOAT2 size, float hp);
+  void Initialize(XMFLOAT2 position, XMFLOAT2 size, float hp);
+};

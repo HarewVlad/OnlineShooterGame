@@ -22,6 +22,9 @@ struct Game {
 
   HashMap<int, int> *weapon_info = NULL;
   HashMap<int, Animation> *animations = NULL;
+
+  void Initialize(HINSTANCE instance);
+  void Run();
 };
 
 static void InitializeGame(Game *game, HINSTANCE instance);

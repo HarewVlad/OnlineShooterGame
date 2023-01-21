@@ -1,13 +1,13 @@
-static void InitializeBody(Body *body, XMFLOAT2 position, XMFLOAT2 size) {
-  body->min = {position.x - size.x, position.y - size.y};
-  body->max = {position.x + size.x, position.y + size.y};
+void Body::Initialize(XMFLOAT2 position, XMFLOAT2 size) {
+  m_min = {position.x - size.x, position.y - size.y};
+  m_max = {position.x + size.x, position.y + size.y};
 }
 
 static bool TestAABBAABB(Body *a, Body *b) {
   // Exit with no intersection if separated along an axis
-  if (a->max.x < b->min.x || a->min.x > b->max.x)
+  if (a->m_max.x < b->m_min.x || a->m_min.x > b->m_max.x)
     return false;
-  if (a->max.y < b->min.y || a->min.y > b->max.y)
+  if (a->m_max.y < b->m_min.y || a->m_min.y > b->m_max.y)
     return false;
 
   // Overlapping on all axes means AABBs are intersecting
@@ -50,14 +50,14 @@ static bool TestAABBAABB(Body *a, Body *b) {
 
 static DirectX::XMFLOAT2 GetIntersectionResolutionOffset(Body *a, Body *b) {
   // Calculate the overlap in both the x and y axes
-  float x_overlap = std::min(a->max.x, b->max.x) - std::max(a->min.x, b->min.x);
-  float y_overlap = std::min(a->max.y, b->max.y) - std::max(a->min.y, b->min.y);
+  float x_overlap = std::min(a->m_max.x, b->m_max.x) - std::max(a->m_min.x, b->m_min.x);
+  float y_overlap = std::min(a->m_max.y, b->m_max.y) - std::max(a->m_min.y, b->m_min.y);
 
   // If the x overlap is smaller, the collision is happening in the x axis
   if (x_overlap < y_overlap) {
-    return XMFLOAT2 { (a->min.x < b->min.x) ? -x_overlap : x_overlap, 0 };
+    return XMFLOAT2 { (a->m_min.x < b->m_min.x) ? -x_overlap : x_overlap, 0 };
   }
   else { // On y axes
-    return XMFLOAT2{ 0, (a->min.y < b->min.y) ? -y_overlap : y_overlap };
+    return XMFLOAT2{ 0, (a->m_min.y < b->m_min.y) ? -y_overlap : y_overlap };
   }
 }

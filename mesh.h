@@ -4,8 +4,8 @@ struct MeshInstanceData {
 };
 
 struct Mesh {
-  ID3D11Buffer *index_buffer;
-  ID3D11Buffer *vertex_buffer;
-};
+  ID3D11Buffer *m_index_buffer;
+  ID3D11Buffer *m_vertex_buffer;
 
-static void InitializeSquare(Mesh *mesh, ID3D11Device *device);
+  void InitializeAsSquare(Directx *directx);
+};

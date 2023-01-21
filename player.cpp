@@ -1,7 +1,7 @@
-static void InitializePlayer(Player *player, XMFLOAT2 position, XMFLOAT2 size, float stamina, float hp, int animation_type) {
-  player->position = position;
-  player->size = size;
-  player->stamina = stamina;
-  player->hp = hp;
-  player->animation_type = animation_type;
+void Player::Initialize(XMFLOAT2 position, XMFLOAT2 size, float stamina, float hp, int animation_type) {
+  m_position = position;
+  m_size = size;
+  m_stamina = stamina;
+  m_hp = hp;
+  m_animation_type = animation_type;
 }

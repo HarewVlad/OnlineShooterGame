@@ -1,6 +1,6 @@
 struct Map {
-  MeshInstanceData *mesh_instance_data = NULL;
-  ID3D11Buffer *instance_buffer;
-};
+  MeshInstanceData *m_mesh_instance_data = NULL;
+  ID3D11Buffer *m_instance_buffer;
 
-static void InitializeDefaultMap(Map *map, ID3D11Device *device, int width, int height);
+  void Initialize(Directx *directx, int width, int height);
+};

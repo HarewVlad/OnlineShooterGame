@@ -1,12 +1,12 @@
-static void CreateRenderTarget(Directx *directx) {
+void Directx::CreateRenderTarget() {
   ID3D11Texture2D *back_buffer;
-  directx->swap_chain->GetBuffer(0, IID_PPV_ARGS(&back_buffer));
-  directx->device->CreateRenderTargetView(back_buffer, NULL,
-                                          &directx->render_target_view);
+  m_swap_chain->GetBuffer(0, IID_PPV_ARGS(&back_buffer));
+  m_device->CreateRenderTargetView(back_buffer, NULL,
+                                          &m_render_target_view);
   back_buffer->Release();
 }
 
-static void CreateDepthStencilView(Directx *directx, int width, int height) {
+void Directx::CreateDepthStencilView(int width, int height) {
   D3D11_TEXTURE2D_DESC depth_stencil_desc = {};
   depth_stencil_desc.Width = width;
   depth_stencil_desc.Height = height;
@@ -20,14 +20,14 @@ static void CreateDepthStencilView(Directx *directx, int width, int height) {
   depth_stencil_desc.CPUAccessFlags = 0;
   depth_stencil_desc.MiscFlags = 0;
 
-  assert(directx->device->CreateTexture2D(&depth_stencil_desc, nullptr,
-                                          &directx->depth_stencil) == S_OK);
-  assert(directx->device->CreateDepthStencilView(
-             directx->depth_stencil, nullptr, &directx->depth_stencil_view) ==
+  assert(m_device->CreateTexture2D(&depth_stencil_desc, nullptr,
+                                          &m_depth_stencil) == S_OK);
+  assert(m_device->CreateDepthStencilView(
+             m_depth_stencil, nullptr, &m_depth_stencil_view) ==
          S_OK);
 }
 
-static void InitializeDirectx(Directx *directx, HWND window, int width, int height) {
+void Directx::Initialize(HWND window, int width, int height) {
   DXGI_SWAP_CHAIN_DESC scd = {};
   scd.BufferCount = 2;
   scd.BufferDesc.Width = 0;
@@ -52,9 +52,9 @@ static void InitializeDirectx(Directx *directx, HWND window, int width, int heig
   
   assert(D3D11CreateDeviceAndSwapChain(
              NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, create_device_flags,
-             feature_levels, 2, D3D11_SDK_VERSION, &scd, &directx->swap_chain,
-             &directx->device, &feature_level,
-             &directx->device_context) == S_OK);
+             feature_levels, 2, D3D11_SDK_VERSION, &scd, &m_swap_chain,
+             &m_device, &feature_level,
+             &m_device_context) == S_OK);
 
   // Sampler
   D3D11_SAMPLER_DESC sd = {};
@@ -65,15 +65,15 @@ static void InitializeDirectx(Directx *directx, HWND window, int width, int heig
   sd.ComparisonFunc = D3D11_COMPARISON_NEVER;
   sd.MinLOD = 0;
   sd.MaxLOD = D3D11_FLOAT32_MAX;
-  assert(directx->device->CreateSamplerState(&sd, &directx->sampler) == S_OK);
+  assert(m_device->CreateSamplerState(&sd, &m_sampler) == S_OK);
 
   // Viewport
-  directx->viewport.Width = (FLOAT)width;
-  directx->viewport.Height = (FLOAT)height;
-  directx->viewport.MinDepth = 0.0f;
-  directx->viewport.MaxDepth = 1.0f;
-  directx->viewport.TopLeftX = 0;
-  directx->viewport.TopLeftY = 0;
+  m_viewport.Width = (FLOAT)width;
+  m_viewport.Height = (FLOAT)height;
+  m_viewport.MinDepth = 0.0f;
+  m_viewport.MaxDepth = 1.0f;
+  m_viewport.TopLeftX = 0;
+  m_viewport.TopLeftY = 0;
 
   // Depth stencil state
   D3D11_DEPTH_STENCIL_DESC dssd = {};
@@ -94,7 +94,7 @@ static void InitializeDirectx(Directx *directx, HWND window, int width, int heig
   dssd.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
   dssd.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
 
-  assert(directx->device->CreateDepthStencilState(&dssd, &directx->depth_stencil_state) == S_OK);
+  assert(m_device->CreateDepthStencilState(&dssd, &m_depth_stencil_state) == S_OK);
 
   // Blend state
   D3D11_BLEND_DESC bsd = {};
@@ -107,17 +107,17 @@ static void InitializeDirectx(Directx *directx, HWND window, int width, int heig
   bsd.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
   bsd.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 
-  assert(directx->device->CreateBlendState(&bsd, &directx->blend_state) == S_OK);
+  assert(m_device->CreateBlendState(&bsd, &m_blend_state) == S_OK);
 
-  CreateRenderTarget(directx);
-  CreateDepthStencilView(directx, width, height);
+  CreateRenderTarget();
+  CreateDepthStencilView(width, height);
 }
 
-static ID3D11InputLayout *CreateInputLayout(ID3D11Device *device,
-                       D3D11_INPUT_ELEMENT_DESC *vertex_element_desc, UINT size,
-                       VertexShader *vertex_shader) {
+ID3D11InputLayout *
+Directx::CreateInputLayout(D3D11_INPUT_ELEMENT_DESC *vertex_element_desc, UINT size,
+                VertexShader *vertex_shader) {
   ID3D11InputLayout *result = NULL;
-  assert(device->CreateInputLayout(
+  assert(m_device->CreateInputLayout(
              vertex_element_desc, size,
              vertex_shader->blob->GetBufferPointer(),
              vertex_shader->blob->GetBufferSize(), &result) == S_OK);
@@ -125,15 +125,7 @@ static ID3D11InputLayout *CreateInputLayout(ID3D11Device *device,
   return result;
 }
 
-static void UpdateBuffer(ID3D11Buffer *buffer, const void *data, size_t size,
-                  ID3D11DeviceContext *device_context) {
-  D3D11_MAPPED_SUBRESOURCE resource;
-  device_context->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
-  memcpy(resource.pData, data, size);
-  device_context->Unmap(buffer, 0);
-}
-
-static ID3D11Buffer *CreateBuffer(ID3D11Device *device, D3D11_USAGE usage, UINT type, UINT cpu_flags, void *data, UINT size) {
+ID3D11Buffer *Directx::CreateBuffer(D3D11_USAGE usage, UINT type, UINT cpu_flags, void *data, UINT size) {
   ID3D11Buffer *result = NULL;
 
   D3D11_BUFFER_DESC bd = {};
@@ -145,15 +137,22 @@ static ID3D11Buffer *CreateBuffer(ID3D11Device *device, D3D11_USAGE usage, UINT 
   if (data != NULL) {
     D3D11_SUBRESOURCE_DATA sd = {};
     sd.pSysMem = data;
-    assert(device->CreateBuffer(&bd, &sd, &result) == S_OK);
+    assert(m_device->CreateBuffer(&bd, &sd, &result) == S_OK);
   } else {
-    assert(device->CreateBuffer(&bd, NULL, &result) == S_OK);
+    assert(m_device->CreateBuffer(&bd, NULL, &result) == S_OK);
   }
 
   return result;
 }
 
-static ID3D11ShaderResourceView *CreateTexture(ID3D11Device *device, const char *filename) {
+void Directx::UpdateBuffer(ID3D11Buffer *buffer, const void *data, size_t size) {
+  D3D11_MAPPED_SUBRESOURCE resource;
+  m_device_context->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
+  memcpy(resource.pData, data, size);
+  m_device_context->Unmap(buffer, 0);
+}
+
+ID3D11ShaderResourceView *Directx::CreateTexture(const char *filename) {
   ID3D11ShaderResourceView *result = nullptr;
 
   int width;
@@ -177,16 +176,53 @@ static ID3D11ShaderResourceView *CreateTexture(ID3D11Device *device, const char 
   sd.pSysMem = pixels;
   sd.SysMemPitch = td.Width * 4;
   sd.SysMemSlicePitch = 0;
-  assert(device->CreateTexture2D(&td, &sd, &texture) == S_OK);
+  assert(m_device->CreateTexture2D(&td, &sd, &texture) == S_OK);
 
   D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {};
   srvd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
   srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
   srvd.Texture2D.MipLevels = td.MipLevels;
   srvd.Texture2D.MostDetailedMip = 0;
-  assert(device->CreateShaderResourceView(texture, &srvd, &result) == S_OK);
+  assert(m_device->CreateShaderResourceView(texture, &srvd, &result) == S_OK);
 
   texture->Release();
+
+  return result;
+}
+
+ID3D10Blob *Directx::CompileShader(LPCWSTR filename, const char *target) {
+  ID3D10Blob *result = NULL;
+  ID3D10Blob *compilation_message = NULL;
+  if (D3DCompileFromFile(filename, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+                         "main", target, D3DCOMPILE_DEBUG, 0, &result,
+                         &compilation_message) != S_OK) {
+    if (compilation_message != NULL)
+      OutputDebugStringA((char *)compilation_message->GetBufferPointer());
+  }
+
+  return result; 
+}
+
+VertexShader Directx::CreateVertexShader(LPCWSTR filename) {
+  VertexShader result = {};
+
+  result.blob = CompileShader(filename, "vs_5_0");
+
+  assert(m_device->CreateVertexShader(result.blob->GetBufferPointer(),
+                                    result.blob->GetBufferSize(), NULL,
+                                    &result.shader) == S_OK);
+
+  return result;
+}
+
+PixelShader Directx::CreatePixelShader(LPCWSTR filename) {
+  PixelShader result = {};
+
+  result.blob = CompileShader(filename, "ps_5_0");
+
+  assert(m_device->CreatePixelShader(result.blob->GetBufferPointer(),
+                                   result.blob->GetBufferSize(), NULL,
+                                   &result.shader) == S_OK);
 
   return result;
 }

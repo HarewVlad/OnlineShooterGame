@@ -37,7 +37,6 @@ using asio::ip::tcp;
 #include "directx.h"
 #include "vertex.h"
 #include "mesh.h"
-#include "object.h"
 #include "weapon.h"
 #include "player.h"
 #include "enemy.h"
@@ -92,6 +91,10 @@ using asio::ip::tcp;
 // TODO(Bonus): Add cool lightning
 // TODO(Bonus): Buffer updates to 1 per frame
 // TODO(Bonus): Start bullet position is barrel muzzle not center of weapon
+// TODO(Bonus): Do a PVE map
+// TODO(Bonus): Add a hero like in WC3 map that runs around kills some enemies and stuff, goes to the city ...
+// TODO(Bonus): Add runes system just like in Allods Online
+// TODO(Bonus): Add secret invisible merchant like in WC3 map that sometimes spawns in some map position and sells secret items like legendary gear and reagents for runes
 
 // TODO(Low): When body is agains 2 bodies, it squizes through both of them, even if there is not enough space to go through
 
@@ -149,3 +152,5 @@ using asio::ip::tcp;
 // DONE: 11. Animations for player and dummy
 // DONE: Remove usage of this animation_frames, store it inside Animation struct
 // DONE: We now change uv coordinates, make different meshes for different objects
+
+// TODO(Experimental): Change architecture

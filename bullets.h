@@ -4,15 +4,12 @@ struct BulletInstanceData {
 };
 
 struct Bullets {
-  MeshInstanceData *mesh_instance_data = NULL;
-  
-  // Not used to draw, but to update position and stuff
-  BulletInstanceData *bullet_instance_data = NULL;
+  MeshInstanceData *m_mesh_instance_data = NULL;
+  BulletInstanceData *m_bullet_instance_data = NULL;
+  ID3D11Buffer *m_instance_buffer;
 
-  ID3D11Buffer *instance_buffer;
+  void Initialize(Directx *directx, int count);
+  void Shoot(CXMVECTOR direction, XMFLOAT2 position, XMFLOAT2 size);
+  void Update(float distance, float speed);
+  void Remove(int index);
 };
-
-static void InitializeBullets(Bullets *bullets, ID3D11Device *device, LPCWSTR ps, int count);
-static void ShootBullet(Bullets *bullets, CXMVECTOR direction, XMFLOAT2 position);
-static void UpdateBullets(Bullets *bullets, float max_distance, float speed);
-static void RemoveBullet(Bullets *bullets, int index);

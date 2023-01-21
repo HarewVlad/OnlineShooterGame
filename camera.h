@@ -1,9 +1,9 @@
 struct Camera {
-  XMFLOAT3 position;
-  XMFLOAT3 target;
-};
+  XMFLOAT3 m_position;
+  XMFLOAT3 m_target;
 
-static void InitializeCamera(Camera *camera, XMFLOAT2 position);
-static void MoveCamera(Camera *camera, float x, float y, float z = 0);
-// TODO: Check performance here
-static XMMATRIX GetCameraView(Camera *camera);
+  void Initialize(XMFLOAT2 position);
+  void Move(float x, float y, float z = 0);
+  // TODO: Check performance here
+  XMMATRIX GetView();
+};

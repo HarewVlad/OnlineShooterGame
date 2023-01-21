@@ -1,6 +1,5 @@
-static void InitializeDefaultMap(Map *map, ID3D11Device *device, int width,
-                                 int height) {
-  // Make a map like something like this:
+void Map::Initialize(Directx *directx, int width, int height) {
+  // Look like this:
   // - - - - -- - - -
   // -               -
   // -   ----  ----  -
@@ -24,26 +23,26 @@ static void InitializeDefaultMap(Map *map, ID3D11Device *device, int width,
 
   // Top, bottom
   for (int x = 0; x < width; x += increment.x) {
-    arrput(map->mesh_instance_data,
+    arrput(m_mesh_instance_data,
            (MeshInstanceData{XMFLOAT2{static_cast<float>(x), 0}, block_size}));
-    arrput(map->mesh_instance_data,
+    arrput(m_mesh_instance_data,
            (MeshInstanceData{
                XMFLOAT2{static_cast<float>(x), last_block_position.y},
                block_size}));
   }
 
   for (int y = 0; y < height; y += increment.y) {
-    arrput(map->mesh_instance_data,
+    arrput(m_mesh_instance_data,
            (MeshInstanceData{XMFLOAT2{0, static_cast<float>(y)}, block_size}));
-    arrput(map->mesh_instance_data,
+    arrput(m_mesh_instance_data,
            (MeshInstanceData{
                XMFLOAT2{last_block_position.x, static_cast<float>(y)},
                block_size}));
   }
 
-  map->instance_buffer =
-      CreateBuffer(device, D3D11_USAGE_DEFAULT, D3D11_BIND_VERTEX_BUFFER, 0,
-                   map->mesh_instance_data,
+  m_instance_buffer =
+      directx->CreateBuffer(D3D11_USAGE_DEFAULT, D3D11_BIND_VERTEX_BUFFER, 0,
+                   m_mesh_instance_data,
                    sizeof(MeshInstanceData) *
-                       static_cast<UINT>(arrlen(map->mesh_instance_data)));
+                       static_cast<UINT>(arrlen(m_mesh_instance_data)));
 }

@@ -1,9 +1,9 @@
 struct Weapon {
-  XMFLOAT2 position;
-  XMFLOAT2 size;
-  int type;
-  float angle;
-};
+  XMFLOAT2 m_position;
+  XMFLOAT2 m_size;
+  int m_type;
+  float m_angle;
 
-void InitializeWeapon(Weapon *weapon, int type, XMFLOAT2 position, XMFLOAT2 size, float angle);
-void WeaponRotate(Weapon *weapon, int y, int height, CXMVECTOR direction);
+  void Initialize(int type, XMFLOAT2 position, XMFLOAT2 size, float angle);
+  void Rotate(int y, int height, CXMVECTOR direction);
+};

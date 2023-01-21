@@ -1,14 +1,14 @@
-static void InitializeCamera(Camera *camera, XMFLOAT2 position) {
-  camera->position = {position.x, position.y, -1};
-  camera->target = {position.x, position.y, 1};
+void Camera::Initialize(XMFLOAT2 position) {
+  m_position = {position.x, position.y, -1};
+  m_target = {position.x, position.y, 1};
 }
 
-static void MoveCamera(Camera *camera, float x, float y, float z) {
-  AddToVector(&camera->position, x, y, z);
-  AddToVector(&camera->target, x, y, z);
+void Camera::Move(float x, float y, float z) {
+  AddToVector(&m_position, x, y, z);
+  AddToVector(&m_target, x, y, z);
 }
 
-static XMMATRIX GetCameraView(Camera *camera) {
-  return XMMatrixLookAtLH(XMLoadFloat3(&camera->position), XMLoadFloat3(&camera->target),
+XMMATRIX Camera::GetView() {
+  return XMMatrixLookAtLH(XMLoadFloat3(&m_position), XMLoadFloat3(&m_target),
       XMVECTOR{0, 1, 0}); 
 }

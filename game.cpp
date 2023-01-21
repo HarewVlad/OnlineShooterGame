@@ -1,15 +1,11 @@
-static void AddVsPsInputLayout(Game *game, ID3D11Device *device,
+static void AddVsPsInputLayout(Game *game, Directx *directx,
                                D3D11_INPUT_ELEMENT_DESC *input_element_desc,
                                UINT count, LPCWSTR vs, LPCWSTR ps,
                                const char *key) {
-  VertexShader vertex_shader;
-  CreateVertexShader(&vertex_shader, game->directx.device, vs);
+  VertexShader vertex_shader = directx->CreateVertexShader(vs);
+  PixelShader pixel_shader = directx->CreatePixelShader(ps);
 
-  PixelShader pixel_shader;
-  CreatePixelShader(&pixel_shader, game->directx.device, ps);
-
-  ID3D11InputLayout *input_layout = CreateInputLayout(
-      game->directx.device, input_element_desc, count, &vertex_shader);
+  ID3D11InputLayout *input_layout = directx->CreateInputLayout(input_element_desc, count, &vertex_shader);
 
   shput(game->vertex_shaders, key, vertex_shader);
   shput(game->pixel_shaders, key, pixel_shader);
@@ -18,7 +14,7 @@ static void AddVsPsInputLayout(Game *game, ID3D11Device *device,
 
 // And input layouts as they are bound to vertex shader
 static void InitializeShaders(Game *game) {
-  auto device = game->directx.device;
+  auto directx = &game->directx;
 
   // Map
   {
@@ -33,7 +29,7 @@ static void InitializeShaders(Game *game) {
        D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_INSTANCE_DATA, 1},
     };
 
-    AddVsPsInputLayout(game, device, input_element_desc,
+    AddVsPsInputLayout(game, &game->directx, input_element_desc,
                        _countof(input_element_desc), 
                        L"shaders\\map\\vs.hlsl",
                        L"shaders\\map\\ps.hlsl", "map");
@@ -48,7 +44,7 @@ static void InitializeShaders(Game *game) {
        D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
 
-    AddVsPsInputLayout(game, device, input_element_desc,
+    AddVsPsInputLayout(game, &game->directx, input_element_desc,
                        _countof(input_element_desc),
                        L"shaders\\player\\vs.hlsl",
                        L"shaders\\player\\ps.hlsl", "player");
@@ -56,18 +52,14 @@ static void InitializeShaders(Game *game) {
 
   // Weapon
   {
-    PixelShader pixel_shader;
-    CreatePixelShader(&pixel_shader, device, L"shaders\\weapon\\ps.hlsl");
+    PixelShader pixel_shader = directx->CreatePixelShader(L"shaders\\weapon\\ps.hlsl");
     shput(game->pixel_shaders, "weapon", pixel_shader);
   }
 
   // Bullets
   {
-    VertexShader vertex_shader;
-    CreateVertexShader(&vertex_shader, device, L"shaders\\bullets\\vs.hlsl");
-
-    PixelShader pixel_shader;
-    CreatePixelShader(&pixel_shader, device, L"shaders\\bullets\\ps.hlsl");
+    VertexShader vertex_shader = directx->CreateVertexShader(L"shaders\\bullets\\vs.hlsl");
+    PixelShader pixel_shader = directx->CreatePixelShader(L"shaders\\bullets\\ps.hlsl");
 
     shput(game->vertex_shaders, "bullets", vertex_shader);
     shput(game->pixel_shaders, "bullets", pixel_shader);
@@ -75,7 +67,9 @@ static void InitializeShaders(Game *game) {
 }
 
 static void CreateAndAddTexture(Game *game, int type, const char *filename) {
-  ID3D11ShaderResourceView *texture = CreateTexture(game->directx.device, filename);
+  auto directx = &game->directx;
+
+  ID3D11ShaderResourceView *texture = directx->CreateTexture(filename);
   hmput(game->textures, type, texture);
 }
 
@@ -113,64 +107,71 @@ static void InitializeWeaponInfo(Game *game) {
 }
 
 static void InitializeMeshes(Game *game) {
-  auto device = game->directx.device;
+  auto directx = &game->directx;
 
   Mesh mesh;
 
   // Player
   {
-    InitializeSquare(&mesh, device);
+    mesh.InitializeAsSquare(directx);
     shput(game->meshes, "player", mesh);
   }
 
   // Weapon
   {
-    InitializeSquare(&mesh, device);
+    mesh.InitializeAsSquare(directx);
     shput(game->meshes, "weapon", mesh);
   }
 
   // Map
   {
-    InitializeSquare(&mesh, device);
+    mesh.InitializeAsSquare(directx);
     shput(game->meshes, "map", mesh);
   }
 
   // Bullet
   {
-    InitializeSquare(&mesh, device);
+    mesh.InitializeAsSquare(directx);
     shput(game->meshes, "bullets", mesh);
   }
 }
 
 static void InitializeGame(Game *game, HINSTANCE instance) {
+  auto directx = &game->directx;
+  auto bullets = &game->bullets;
+  auto camera = &game->camera;
+  auto dummy = &game->dummy;
+  auto map = &game->map;
+  auto player = &game->player;
+  auto weapon = &game->weapon;
+
   game->window = CreateWindow("Walki", s_Width, s_Height);
   SetWindowData(game->window, &game->window_data);
   PresentWindow(game->window);
 
   InitializeImGuiWin32(game->window);
 
-  InitializeDirectx(&game->directx, game->window, s_Width, s_Height);
-  ImGui_ImplDX11_Init(game->directx.device, game->directx.device_context);
+  directx->Initialize(game->window, s_Width, s_Height);
+  ImGui_ImplDX11_Init(directx->m_device, directx->m_device_context);
 
-  game->default_constant_buffer = CreateBuffer(
-      game->directx.device, D3D11_USAGE_DYNAMIC, D3D11_BIND_CONSTANT_BUFFER,
+  game->default_constant_buffer = directx->CreateBuffer(
+      D3D11_USAGE_DYNAMIC, D3D11_BIND_CONSTANT_BUFFER,
       D3D11_CPU_ACCESS_WRITE, NULL, sizeof(ConstantBuffer));
 
   InitializeMeshes(game);
   InitializeShaders(game);
   InitializeTextures(game);
   InitializeAnimations(game);
-  InitializeDefaultMap(&game->map, game->directx.device, s_MapWidth, s_MapHeight);
-  InitializeCamera(&game->camera, s_PlayerSpawnPosition);
-  InitializePlayer(&game->player, s_PlayerSpawnPosition, s_PlayerSize, s_PlayerStamina, s_PlayerHp, Animation_Idle);
-  InitializeDummy(&game->dummy, s_DummyPosition, s_PlayerSize, s_DummyHp);
+  map->Initialize(directx, s_MapWidth, s_MapHeight);
+  camera->Initialize(s_PlayerSpawnPosition);
+  player->Initialize(s_PlayerSpawnPosition, s_PlayerSize, s_PlayerStamina, s_PlayerHp, Animation_Idle);
+  dummy->Initialize(s_DummyPosition, s_PlayerSize, s_DummyHp);
 
   InitializeWeaponInfo(game);
-  XMFLOAT2 weapon_position = {game->player.position.x + game->player.size.x + game->player.size.x * 0.1f,
-                              game->player.position.y};
-  InitializeWeapon(&game->weapon, Weapon_AK47,
-                  weapon_position, s_WeaponSize, s_WeaponDefaultAngle);
-  InitializeBullets(&game->bullets, game->directx.device, s_MaxBullets);
+  XMFLOAT2 weapon_position = {game->player.m_position.x + game->player.m_size.x + game->player.m_size.x * 0.1f,
+                              game->player.m_position.y};
+  weapon->Initialize(Weapon_AK47, weapon_position, s_WeaponSize, s_WeaponDefaultAngle);
+  bullets->Initialize(directx, s_MaxBullets);
 
   // game->projection = XMMatrixPerspectiveFovLH(
   // XMConvertToRadians(45), s_Width / (float)s_Height, 0.1f, 1024);
@@ -198,25 +199,26 @@ static void UpdateCollision(Game *game, float dt) {
   auto player = &game->player;
   auto weapon = &game->weapon;
   auto map = &game->map;
+  auto camera = &game->camera;
 
   Body player_body;
-  InitializeBody(&player_body, player->position, player->size);
+  player_body.Initialize(player->m_position, player->m_size);
 
   // Player collision with map objects
-  size_t map_object_count = arrlen(map->mesh_instance_data);
+  size_t map_object_count = arrlen(map->m_mesh_instance_data);
   for (int i = 0; i < map_object_count; i++) {
-    auto oid = map->mesh_instance_data[i];
+    auto oid = map->m_mesh_instance_data[i];
 
     Body object_body;
-    InitializeBody(&object_body, oid.position, oid.size);
+    object_body.Initialize(oid.position, oid.size);
 
     if (TestAABBAABB(&player_body, &object_body)) {
       XMFLOAT2 offset =
           GetIntersectionResolutionOffset(&player_body, &object_body);
 
-      AddToVector(&player->position, offset);
-      AddToVector(&weapon->position, offset);
-      MoveCamera(&game->camera, offset.x, offset.y);
+      AddToVector(&player->m_position, offset);
+      AddToVector(&weapon->m_position, offset);
+      camera->Move(offset.x, offset.y);
     }
   }
 
@@ -225,7 +227,7 @@ static void UpdateCollision(Game *game, float dt) {
   auto dummy = &game->dummy;
 
   Body dummy_body;
-  InitializeBody(&dummy_body, dummy->position, dummy->size);
+  dummy_body.Initialize(dummy->m_position, dummy->m_size);
 
   // Only process collisions on host machine
   auto connection = GetConnection(&game->server);
@@ -233,39 +235,39 @@ static void UpdateCollision(Game *game, float dt) {
 
   Body enemy_body;
   if (connection != NULL) {
-    InitializeBody(&enemy_body, connection_data->position, player->size);
+    enemy_body.Initialize(connection_data->position, player->m_size);
   }
 
-  for (int i = 0; i < arrlen(bullets->mesh_instance_data); i++) {
-    auto bid = bullets->mesh_instance_data[i];
+  for (int i = 0; i < arrlen(bullets->m_mesh_instance_data); i++) {
+    auto bid = bullets->m_mesh_instance_data[i];
 
     Body bullet_body;
-    InitializeBody(&bullet_body, bid.position, bid.size);
+    bullet_body.Initialize(bid.position, bid.size);
 
     // With client / host player
     if (connection != NULL) {
       if (TestAABBAABB(&bullet_body, &enemy_body)) {
-        int damage = hmget(game->weapon_info, weapon->type);
+        int damage = hmget(game->weapon_info, weapon->m_type);
 
         // So initial thought is that server makes changed, send them to client, and client apply them and after that cleans it
         // changed_data->hp = static_cast<float>(-damage);
       }
     } else { // With dummy
       if (TestAABBAABB(&bullet_body, &dummy_body)) {
-        int damage = hmget(game->weapon_info, weapon->type);
-        dummy->hp -= damage;
+        int damage = hmget(game->weapon_info, weapon->m_type);
+        dummy->m_hp -= damage;
       }
     }
 
     // With map objects
     for (int j = 0; j < map_object_count; j++) {
-      MeshInstanceData oid = map->mesh_instance_data[j];
+      MeshInstanceData oid = map->m_mesh_instance_data[j];
 
       Body object_body;
-      InitializeBody(&object_body, oid.position, oid.size);
+      object_body.Initialize(oid.position, oid.size);
 
       if (TestAABBAABB(&bullet_body, &object_body)) {
-        RemoveBullet(bullets, i);
+        bullets->Remove(i);
         break;
       }
     }
@@ -275,6 +277,8 @@ static void UpdateCollision(Game *game, float dt) {
 static void Input(Game *game, float dt) {
   auto player = &game->player;
   auto weapon = &game->weapon;
+  auto bullets = &game->bullets;
+  auto camera = &game->camera;
 
   if (IsKeyDown(&game->window_data, VK_ESCAPE)) {
     s_State = State_Menu;
@@ -299,21 +303,21 @@ static void Input(Game *game, float dt) {
    * Used only as parameters to GetAsyncKeyState() and GetKeyState().
    * No other API or message will distinguish left and right keys in this way.
   */
-  if ((GetKeyState(VK_LSHIFT) & 0x8000) && player->stamina > 0) {
+  if ((GetKeyState(VK_LSHIFT) & 0x8000) && player->m_stamina > 0) {
     player_velocity.x *= 2;
     player_velocity.y *= 2;
-    player->stamina -= dt * 0.5f;
-  } else if (player->stamina < s_PlayerStamina) {
-    player->stamina += dt * 0.1f;
+    player->m_stamina -= dt * 0.5f;
+  } else if (player->m_stamina < s_PlayerStamina) {
+    player->m_stamina += dt * 0.1f;
   }
 
   if (player_velocity.x != 0 || player_velocity.y != 0) {
-    AddToVector(&player->position, player_velocity);
-    AddToVector(&weapon->position, player_velocity);
-    MoveCamera(&game->camera, player_velocity.x, player_velocity.y);
-    player->animation_type = Animation_Run;
+    AddToVector(&player->m_position, player_velocity);
+    AddToVector(&weapon->m_position, player_velocity);
+    camera->Move(player_velocity.x, player_velocity.y);
+    player->m_animation_type = Animation_Run;
   } else {
-    player->animation_type = Animation_Idle;
+    player->m_animation_type = Animation_Idle;
   }
 
   // Vector from weapon cetner to cursor
@@ -322,11 +326,11 @@ static void Input(Game *game, float dt) {
   // Solution to make rotation look more centered for surtain weapons?
   float additional_offset = 5; 
 
-  XMFLOAT2 weapon_screen_center = {s_HalfWidth + player->size.x / 2.0f + weapon->size.x / 2.0f - additional_offset, (float)s_HalfHeight};
+  XMFLOAT2 weapon_screen_center = {s_HalfWidth + player->m_size.x / 2.0f + weapon->m_size.x / 2.0f - additional_offset, (float)s_HalfHeight};
   XMVECTOR weapon_direction = XMVector2Normalize(XMVectorSet(weapon_screen_center.x - cursor_position.x, weapon_screen_center.y - cursor_position.y, 0, 0));
 
   // Rotate weapon toward some direction
-  WeaponRotate(weapon, cursor_position.y, s_HalfHeight, weapon_direction);
+  weapon->Rotate(cursor_position.y, s_HalfHeight, weapon_direction);
 
   static float time = 0.0f;
   if (IsKeyDown(&game->window_data, MK_LBUTTON)) {
@@ -334,7 +338,7 @@ static void Input(Game *game, float dt) {
       // Weapon default possition is toward -1 coordinate, so need to reverse x coordinate to shoot right
       float x = -XMVectorGetX(weapon_direction);
 
-      ShootBullet(&game->bullets, XMVectorSetX(weapon_direction, x), weapon->position);
+      bullets->Shoot(XMVectorSetX(weapon_direction, x), weapon->m_position, s_BulletSize);
       time = 0.0f;
     }
 
@@ -344,8 +348,8 @@ static void Input(Game *game, float dt) {
 
 static void UpdateDummy(Dummy *dummy, float dt) {
   // Regenerate dummy
-  if (dummy->hp < s_DummyHp) {
-    dummy->hp += s_DummyRegenRate * dt;
+  if (dummy->m_hp < s_DummyHp) {
+    dummy->m_hp += s_DummyRegenRate * dt;
   }
 }
 
@@ -355,25 +359,27 @@ static void UpdateConnection(Game *game) {
 
   if (connection != NULL) {
     // Write host player data
-    connection->host_data = {player->position, player->hp};
+    connection->host_data = {player->m_position, player->m_hp};
   } else {
     connection = game->client.connection;
     if (connection != NULL) {
       // Write client player data
-      connection->client_data = {player->position, player->hp};
+      connection->client_data = {player->m_position, player->m_hp};
     }
   }
 }
 
 static void UpdateAnimations(Game *game, float dt) {
   auto player = &game->player;
-  auto animation = &hmget(game->animations, player->animation_type);
+  auto animation = &hmget(game->animations, player->m_animation_type);
 
-  UpdateAnimation(animation, dt);
+  animation->Update(dt);
 }
 
 static void Update(Game *game, float dt) {
-  UpdateBullets(&game->bullets, s_BulletMaxDistance, s_BulletSpeed);
+  auto bullets = &game->bullets;
+
+  bullets->Update(s_BulletMaxDistance, s_BulletSpeed);
   UpdateCollision(game, dt);
   UpdateDummy(&game->dummy, dt);
   UpdateConnection(game);
@@ -382,9 +388,10 @@ static void Update(Game *game, float dt) {
 
 static void RenderGame(Game *game) {
   auto directx = &game->directx;
-  auto device_context = directx->device_context;
+  auto device_context = directx->m_device_context;
+  auto camera = &game->camera;
   
-  XMMATRIX view = GetCameraView(&game->camera);
+  XMMATRIX view = camera->GetView();
 
   // Map
   {
@@ -404,28 +411,27 @@ static void RenderGame(Game *game) {
     XMMATRIX mvp = view * game->projection;
 
     ConstantBuffer constant_buffer_data = { XMMatrixTranspose(mvp) };
-    UpdateBuffer(game->default_constant_buffer, &constant_buffer_data, sizeof(ConstantBuffer),
-                 device_context);
+    directx->UpdateBuffer(game->default_constant_buffer, &constant_buffer_data, sizeof(ConstantBuffer));
 
     device_context->VSSetConstantBuffers(0, 1, &game->default_constant_buffer);
 
-    ID3D11Buffer *buffers[] = {mesh->vertex_buffer,
-                               map->instance_buffer};
+    ID3D11Buffer *buffers[] = {mesh->m_vertex_buffer,
+                               map->m_instance_buffer};
     UINT strides[] = {sizeof(Vertex), sizeof(MeshInstanceData)};
     UINT offsets[] = {0, 0};
     device_context->IASetVertexBuffers(0, 2, buffers, strides,
                                                 offsets);
-    device_context->IASetIndexBuffer(mesh->index_buffer,
+    device_context->IASetIndexBuffer(mesh->m_index_buffer,
                                               DXGI_FORMAT_R32_UINT, 0);
 
-    UINT count = static_cast<UINT>(arrlen(map->mesh_instance_data));
+    UINT count = static_cast<UINT>(arrlen(map->m_mesh_instance_data));
     device_context->DrawIndexedInstanced(
         6, count, 0, 0, 0);
   }
 
   // Bullets
   auto bullets = &game->bullets;
-  size_t bullet_count = arrlen(bullets->mesh_instance_data);
+  size_t bullet_count = arrlen(bullets->m_mesh_instance_data);
   if (bullet_count > 0)
   {
     auto vertex_shader = &shget(game->vertex_shaders, "bullets");
@@ -437,11 +443,10 @@ static void RenderGame(Game *game) {
     device_context->PSSetShader(pixel_shader->shader, nullptr,
                                          0);
     // Apply changes to position
-    UpdateBuffer(bullets->instance_buffer, bullets->mesh_instance_data, sizeof(MeshInstanceData) * bullet_count,
-                 device_context);
+    directx->UpdateBuffer(bullets->m_instance_buffer, bullets->m_mesh_instance_data, sizeof(MeshInstanceData) * bullet_count);
 
-    ID3D11Buffer *buffers[] = {mesh->vertex_buffer,
-                               bullets->instance_buffer};
+    ID3D11Buffer *buffers[] = {mesh->m_vertex_buffer,
+                               bullets->m_instance_buffer};
     UINT strides[] = {sizeof(Vertex), sizeof(MeshInstanceData)};
     UINT offsets[] = {0, 0};
     device_context->IASetVertexBuffers(0, 2, buffers, strides,
@@ -459,19 +464,18 @@ static void RenderGame(Game *game) {
     auto pixel_shader = &shget(game->pixel_shaders, "player");
     auto input_layout = shget(game->input_layouts, "player");
     auto mesh = &shget(game->meshes, "player");
-    auto texture = hmget(game->textures, player->animation_type);
-    auto animation = &hmget(game->animations, player->animation_type);
+    auto texture = hmget(game->textures, player->m_animation_type);
+    auto animation = &hmget(game->animations, player->m_animation_type);
 
     // Update UVs for player
     Vertex vertices[4] = {
-      Vertex{XMFLOAT2{-1, -1}, animation->uv[0]},
-      Vertex{XMFLOAT2{-1, 1}, animation->uv[1]},
-      Vertex{XMFLOAT2{1, 1}, animation->uv[2]},
-      Vertex{XMFLOAT2{1, -1}, animation->uv[3]}
+      Vertex{XMFLOAT2{-1, -1}, animation->m_uv[0]},
+      Vertex{XMFLOAT2{-1, 1}, animation->m_uv[1]},
+      Vertex{XMFLOAT2{1, 1}, animation->m_uv[2]},
+      Vertex{XMFLOAT2{1, -1}, animation->m_uv[3]}
     };
 
-    UpdateBuffer(mesh->vertex_buffer, &vertices, sizeof(vertices),
-                 device_context);
+    directx->UpdateBuffer(mesh->m_vertex_buffer, &vertices, sizeof(vertices));
 
     device_context->IASetInputLayout(input_layout);
     device_context->VSSetShader(vertex_shader->shader,
@@ -480,17 +484,16 @@ static void RenderGame(Game *game) {
                                          nullptr, 0);
     device_context->PSSetShaderResources(0, 1, &texture);
 
-    XMMATRIX mvp = GetModelMatrix(player->position, player->size) * view * game->projection;
+    XMMATRIX mvp = GetModelMatrix(player->m_position, player->m_size) * view * game->projection;
 
     ConstantBuffer constant_buffer_data = { XMMatrixTranspose(mvp) };
-    UpdateBuffer(game->default_constant_buffer, &constant_buffer_data, sizeof(ConstantBuffer),
-                 device_context);
+    directx->UpdateBuffer(game->default_constant_buffer, &constant_buffer_data, sizeof(ConstantBuffer));
 
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
     device_context->IASetVertexBuffers(
-        0, 1, &mesh->vertex_buffer, &stride, &offset);
-    device_context->IASetIndexBuffer(mesh->index_buffer,
+        0, 1, &mesh->m_vertex_buffer, &stride, &offset);
+    device_context->IASetIndexBuffer(mesh->m_index_buffer,
                                               DXGI_FORMAT_R32_UINT, 0);
 
     device_context->DrawIndexed(6, 0, 0);
@@ -508,21 +511,19 @@ static void RenderGame(Game *game) {
     }
 
     if (connection != NULL) {
-      mvp = GetModelMatrix(position, player->size) * view * game->projection;
+      mvp = GetModelMatrix(position, player->m_size) * view * game->projection;
 
       constant_buffer_data = { XMMatrixTranspose(mvp) };
-      UpdateBuffer(game->default_constant_buffer, &constant_buffer_data, sizeof(ConstantBuffer),
-                   device_context);
+      directx->UpdateBuffer(game->default_constant_buffer, &constant_buffer_data, sizeof(ConstantBuffer));
 
       device_context->DrawIndexed(6, 0, 0);
     } else { // For now we assume that if we don't have connection, than we are in a training mode
       auto dummy = &game->dummy;
 
-      mvp = GetModelMatrix(dummy->position, player->size) * view * game->projection;
+      mvp = GetModelMatrix(dummy->m_position, player->m_size) * view * game->projection;
 
       constant_buffer_data = { XMMatrixTranspose(mvp) };
-      UpdateBuffer(game->default_constant_buffer, &constant_buffer_data, sizeof(ConstantBuffer),
-                   device_context);
+      directx->UpdateBuffer(game->default_constant_buffer, &constant_buffer_data, sizeof(ConstantBuffer));
 
       device_context->DrawIndexed(6, 0, 0);
     }
@@ -533,21 +534,20 @@ static void RenderGame(Game *game) {
 
       pixel_shader = &shget(game->pixel_shaders, "weapon");
       mesh = &shget(game->meshes, "weapon");
-      texture = hmget(game->textures, weapon->type);
+      texture = hmget(game->textures, weapon->m_type);
 
       device_context->PSSetShader(pixel_shader->shader,
                                            nullptr, 0);
-      device_context->PSSetSamplers(0, 1, &directx->sampler);
+      device_context->PSSetSamplers(0, 1, &directx->m_sampler);
       device_context->PSSetShaderResources(0, 1, &texture);
 
-      mvp = GetModelMatrix(weapon->position, weapon->size, weapon->angle) * view * game->projection;
+      mvp = GetModelMatrix(weapon->m_position, weapon->m_size, weapon->m_angle) * view * game->projection;
 
       constant_buffer_data = { XMMatrixTranspose(mvp) };
-      UpdateBuffer(game->default_constant_buffer, &constant_buffer_data, sizeof(ConstantBuffer),
-                   device_context);
+      directx->UpdateBuffer(game->default_constant_buffer, &constant_buffer_data, sizeof(ConstantBuffer));
 
       device_context->IASetVertexBuffers(
-        0, 1, &mesh->vertex_buffer, &stride, &offset);
+        0, 1, &mesh->m_vertex_buffer, &stride, &offset);
 
       device_context->DrawIndexed(6, 0, 0);
     }
@@ -619,30 +619,30 @@ static void RenderGameInterface(Game *game) {
 
   auto player = &game->player;
   ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0, 1.0f, 0, 1));
-  ImGui::ProgressBar(player->stamina, ImVec2(100.0f, 0.0f));
+  ImGui::ProgressBar(player->m_stamina, ImVec2(100.0f, 0.0f));
   ImGui::PopStyleColor();
 
-  ImGui::Text("Player hp -> %.3f", player->hp);
+  ImGui::Text("Player hp -> %.3f", player->m_hp);
 
   auto weapon = &game->weapon;
-  ImGui::Text("Weapon angle -> %.3f", weapon->angle);
+  ImGui::Text("Weapon angle -> %.3f", weapon->m_angle);
 
   auto bullets = &game->bullets;
-  ImGui::Text("Bullets count -> %d", arrlen(bullets->mesh_instance_data));
+  ImGui::Text("Bullets count -> %d", arrlen(bullets->m_mesh_instance_data));
 
   auto dummy = &game->dummy;
-  ImGui::Text("Dummy hp -> %.3f", dummy->hp);
+  ImGui::Text("Dummy hp -> %.3f", dummy->m_hp);
 
-  auto animation = &hmget(game->animations, player->animation_type);
-  ImGui::Text("Animation index, time -> %d, %.3f", animation->index, animation->time);
+  auto animation = &hmget(game->animations, player->m_animation_type);
+  ImGui::Text("Animation index, time -> %d, %.3f", animation->m_index, animation->m_time);
 
   // If not multiplayer, render hp for dummy
-  ImVec2 offset = {player->size.x * 2, player->size.y * 2};
+  ImVec2 offset = {player->m_size.x * 2, player->m_size.y * 2};
   if (!IsConnected(&game->server, &game->client)) {
-    ImVec2 dummy_position = GetARelativeToB(dummy->position, player->position);
+    ImVec2 dummy_position = GetARelativeToB(dummy->m_position, player->m_position);
 
     ImGui::SetCursorPos(io.DisplaySize / 2.0f + dummy_position - offset);
-    DrawHpBar(dummy->hp, s_DummyHp);
+    DrawHpBar(dummy->m_hp, s_DummyHp);
   } else {
     // Render hp for Host / Client
     auto connection = GetConnection(&game->server);
@@ -659,40 +659,40 @@ static void RenderGameInterface(Game *game) {
     // Not actually needed, but just in case
     assert(connection_data != NULL);
 
-    ImVec2 relative_position = GetARelativeToB(connection_data->position, player->position);
+    ImVec2 relative_position = GetARelativeToB(connection_data->position, player->m_position);
     ImGui::SetCursorPos(io.DisplaySize / 2.0f + relative_position - offset);
     DrawHpBar(connection_data->hp, s_PlayerHp);
   }
 
   ImGui::SetCursorPos(io.DisplaySize / 2.0f - offset);
-  DrawHpBar(player->hp, s_PlayerHp, ImVec4(1.0f, 0, 0, 1));
+  DrawHpBar(player->m_hp, s_PlayerHp, ImVec4(1.0f, 0, 0, 1));
 }
 
 static void RenderBegin(Directx *directx) {
-  ID3D11DeviceContext *device_context = directx->device_context;
+  ID3D11DeviceContext *device_context = directx->m_device_context;
 
   const float clear_color[] = {0.1, 0.1, 0.2, 1};
-  device_context->ClearRenderTargetView(directx->render_target_view,
+  device_context->ClearRenderTargetView(directx->m_render_target_view,
                                                  clear_color);
   device_context->ClearDepthStencilView(
-      directx->depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
+      directx->m_depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
       1.0f, 0);
-  device_context->RSSetViewports(1, &directx->viewport);
-  device_context->OMSetRenderTargets(1, &directx->render_target_view,
-                                              directx->depth_stencil_view);
+  device_context->RSSetViewports(1, &directx->m_viewport);
+  device_context->OMSetRenderTargets(1, &directx->m_render_target_view,
+                                              directx->m_depth_stencil_view);
   device_context->IASetPrimitiveTopology(
       D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
   // Used to rendering opaque textures
-  device_context->OMSetDepthStencilState(directx->depth_stencil_state,
+  device_context->OMSetDepthStencilState(directx->m_depth_stencil_state,
                                                   0);
   const float blend_factor[] = {0, 0, 0, 0};
-      device_context->OMSetBlendState(directx->blend_state,
+      device_context->OMSetBlendState(directx->m_blend_state,
       blend_factor, 0xffffffff);
 }
 
 static void Render(Game *game) {
-  Directx *directx = &game->directx;
+  auto directx = &game->directx;
 
   RenderBegin(directx);
   ImGuiBegin();
@@ -729,7 +729,7 @@ static void Render(Game *game) {
   ImGui::End();
 
   ImGuiEnd();
-  directx->swap_chain->Present(0, 0);
+  directx->m_swap_chain->Present(0, 0);
 }
 
 static void Run(Game *game) {
@@ -773,4 +773,12 @@ static void Run(Game *game) {
   // Just in case of rage quit, close this shit
   StopServer(&game->server);
   StopClient(&game->client);
+}
+
+void Game::Initialize(HINSTANCE instance) {
+
+}
+
+void Game::Run() {
+
 }
