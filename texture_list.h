@@ -5,9 +5,11 @@ enum TextureList {
   Weapon_AUG,
 
   // Character animation
-  // Currently focusing on 1 animation - "biker", so later need to modify it or dynamically modify it
   Animation_Run,
   Animation_Death,
   Animation_Idle,
   Animation_Hurt,
+  Animation_Dash,
+  Animation_Idle2,
+  Animation_Sitdown,
 };

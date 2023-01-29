@@ -1,6 +1,8 @@
 struct Player {
   XMFLOAT2 m_position;
   XMFLOAT2 m_size;
+  XMFLOAT2 m_direction = {1, 0};
+  XMFLOAT2 m_velocity = {};
   float m_stamina;
   float m_hp;
   int m_animation_type;

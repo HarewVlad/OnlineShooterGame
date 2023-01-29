@@ -39,7 +39,7 @@ using asio::ip::tcp;
 #include "mesh.h"
 #include "weapon.h"
 #include "player.h"
-#include "enemy.h"
+#include "fixture.h"
 #include "map.h"
 #include "bullets.h"
 #include "connection.h"
@@ -146,11 +146,15 @@ using asio::ip::tcp;
 // DONE: 10. Remove "Play" and "Connect" button and replace with "Host" and "Client" and while waiting for player play on default map
 // DONE: 12. Collision of dummy suddenly went off ...
 // DONE: 13. Get hp from client / host and display it, remove usage of fixed 100 
-// TODO: 14. Collision for player vs player
 // DONE: 15. Remove dummy when the game is online
-// TODO: 16. Send fixture info about client player to the server, and then send it back to client
 // DONE: 11. Animations for player and dummy
 // DONE: Remove usage of this animation_frames, store it inside Animation struct
 // DONE: We now change uv coordinates, make different meshes for different objects
-
-// TODO(Experimental): Change architecture
+// DONE: Change state only inside game struct?
+// DONE: Fix dummy hp goes below zero
+// DONE(Experimental): Change architecture
+// DONE: Animation flip-x coordinate on movement
+// DONE: Some initial params defaulted for player
+// DONE: Dash animation
+// TODO: 16. Send fixture info about client player to the server, and then send it back to client
+// TODO: Change network architecture

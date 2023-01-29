@@ -1,18 +1,18 @@
-static void ProceedClientConnection(Connection *connection) {
+void Session::ProcessClientConnection() {
   // Read client player data
   asio::async_read(
-      connection->socket,
-      asio::buffer(&connection->client_data, sizeof(ConnectionData)),
-      [connection](std::error_code error, size_t length) {
+      m_connection->socket,
+      asio::buffer(&m_connection->client_data, sizeof(ConnectionData)),
+      [this](std::error_code error, size_t length) {
         if (!error) {
           // Send our player data
           asio::async_write(
-              connection->socket,
-              asio::buffer(&connection->host_data, sizeof(ConnectionData)),
-              [connection](std::error_code error, std::size_t length) {
+              m_connection->socket,
+              asio::buffer(&m_connection->host_data, sizeof(ConnectionData)),
+              [this](std::error_code error, std::size_t length) {
                 if (!error) {
                   // Send modified player data
-                  ProceedClientConnection(connection);
+                  ProcessClientConnection();
                 }
               });
         }
@@ -24,72 +24,69 @@ static void ProceedClientConnection(Connection *connection) {
   // t.async_wait(&print);
 }
 
-static void SessionListen(Session *session) {
-  session->acceptor.async_accept(
-      [session](std::error_code error, tcp::socket socket) {
-        if (!session->acceptor.is_open()) {
+void Server::Listen() {
+  m_session->m_acceptor.async_accept(
+      [this](std::error_code error, tcp::socket socket) {
+        if (!m_session->m_acceptor.is_open()) {
           return;
         }
 
         if (!error) {
-          session->connection = new Connection{std::move(socket)};
-          ProceedClientConnection(session->connection);
+          m_session->m_connection = new Connection{std::move(socket)};
+          m_session->ProcessClientConnection();
         }
 
-        SessionListen(session);
+        Listen();
       });
 }
 
-static void StartServer(Server *server) {
+void Server::Start() {
   tcp::endpoint endpoint(tcp::v4(), 1234);
 
   // Shit to store tcp::acceptor
-  server->session = new Session{tcp::acceptor(server->io, endpoint), NULL};
-  SessionListen(server->session);
+  m_session = new Session{tcp::acceptor(m_io, endpoint), NULL};
+  Listen();
 
   // As we have at list 1 async operation all the time, run the loop
-  server->thread = std::thread([server]() { server->io.run(); });
+  m_thread = std::thread([this]() { m_io.run(); });
 }
 
-static void StopServer(Server *server) {
-  server->io.stop();
-  if (server->thread.joinable()) {
-    server->thread.join();
+void Server::Stop() {
+  m_io.stop();
+  if (m_thread.joinable()) {
+    m_thread.join();
   }
 
   // To be able to launch server again
-  server->io.reset();
+  m_io.reset();
 
   // Clean allocations
-  Session *session = server->session;
-  if (session != NULL) {
-    Connection *connection = session->connection;
-    if (connection != NULL) {
-      delete connection;
+  if (m_session != NULL) {
+    if (m_session->m_connection != NULL) {
+      delete m_session->m_connection;
     }
-    delete session;
-    server->session = NULL;
+    delete m_session;
+    m_session = NULL;
   }
 }
 
-static std::string GetEnemyAddress(Server *server) {
-  std::string result;
+// static std::string GetEnemyAddress(Server *server) {
+//   std::string result;
 
-  Session *session = server->session;
-  if (session != NULL) {
-    Connection *connection = session->connection;
-    if (connection != NULL) {
-      result = connection->socket.remote_endpoint().address().to_string();
-    }
-  }
+//   Session *session = server->session;
+//   if (session != NULL) {
+//     Connection *connection = session->connection;
+//     if (connection != NULL) {
+//       result = connection->socket.remote_endpoint().address().to_string();
+//     }
+//   }
 
-  return result;
-}
+//   return result;
+// }
 
-static Connection *GetConnection(Server *server) {
-  Session *session = server->session;
-  if (session != NULL) {
-    return session->connection;
+Connection *Server::GetConnection() {
+  if (m_session != NULL) {
+    return m_session->m_connection;
   }
 
   return NULL;

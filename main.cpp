@@ -17,7 +17,7 @@
 #include "directx.cpp"
 #include "mesh.cpp"
 #include "weapon.cpp"
-#include "enemy.cpp"
+#include "fixture.cpp"
 #include "player.cpp"
 #include "map.cpp"
 #include "bullets.cpp"
@@ -32,9 +32,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   SetRandomSeed();
 
   Game game;
-  InitializeGame(&game, hInstance);
-  s_State = State_Menu;
-  Run(&game);
+  game.Initialize(hInstance);
+  game.Run();
 
   return 0;
 }

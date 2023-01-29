@@ -1,15 +1,22 @@
 struct Session {
-  tcp::acceptor acceptor;
-  Connection *connection = NULL;
+  tcp::acceptor m_acceptor;
+  Connection *m_connection = NULL;
+
+public:
+  void ProcessClientConnection();
 };
 
 struct Server {
-  Session *session = NULL;
-  asio::io_context io;
-  std::thread thread;
-};
+  Session *m_session = NULL;
+  asio::io_context m_io;
+  std::thread m_thread;
 
-static void StartServer(Server *server);
-static void StopServer(Server *server);
-static std::string GetEnemyAddress(Server *server);
-static Connection *GetConnection(Server *server);
+  void Start();
+  void Stop();
+  // std::string GetEnemyAddress();
+  Connection *GetConnection();
+
+private:
+  void Listen();
+
+};

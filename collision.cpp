@@ -48,7 +48,7 @@ static bool TestAABBAABB(Body *a, Body *b) {
 //   return result;
 // }
 
-static DirectX::XMFLOAT2 GetIntersectionResolutionOffset(Body *a, Body *b) {
+static XMFLOAT2 GetIntersectionResolutionOffset(Body *a, Body *b) {
   // Calculate the overlap in both the x and y axes
   float x_overlap = std::min(a->m_max.x, b->m_max.x) - std::max(a->m_min.x, b->m_min.x);
   float y_overlap = std::min(a->m_max.y, b->m_max.y) - std::max(a->m_min.y, b->m_min.y);

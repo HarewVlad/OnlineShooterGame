@@ -1,8 +1,12 @@
 struct Client {
-  Connection *connection = NULL;
-  asio::io_context io;
-  std::thread thread;
-};
+  Connection *m_connection = NULL;
+  asio::io_context m_io;
+  std::thread m_thread;
 
-static void StartClient(Client *client, const char *ip, const char *port);
-static void StopClient(Client *client);
+  void Start(const char *ip, const char *port);
+  void Stop();
+
+private:
+  void Connect(const tcp::resolver::results_type &endpoints);
+  void ProcessServerConnection();
+};

@@ -55,3 +55,11 @@ static XMMATRIX GetModelMatrix(XMFLOAT2 position, XMFLOAT2 size, float z) {
          XMMatrixScaling(size.x, size.y, 1) *
          XMMatrixTranslation(position.x, position.y, 0);
 }
+
+static float RoundToClosest1(float value) {
+  return value > 0.0f ? 1.0f : value < 0.0f ? -1.0f : 0.0f;
+}
+
+static bool IsNull(XMFLOAT2 value) {
+  return value.x == 0 && value.y == 0;
+}

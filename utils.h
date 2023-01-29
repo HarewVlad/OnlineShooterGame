@@ -31,3 +31,5 @@ static void SetVector(XMINT2 *vector, int x, int y);
 static void VectorMinus(XMFLOAT2 *a, XMFLOAT2 *b);
 static XMMATRIX GetModelMatrix(XMFLOAT2 position, XMFLOAT2 size);
 static XMMATRIX GetModelMatrix(XMFLOAT2 position, XMFLOAT2 size, float z);
+static float RoundToClosest1(float value);
+static bool IsNull(XMFLOAT2 value);
